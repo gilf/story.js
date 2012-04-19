@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "story.js", "story.js\story.js.csproj", "{2AD91A69-FF23-49AA-A01E-0CE1175114A6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2AD91A69-FF23-49AA-A01E-0CE1175114A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2AD91A69-FF23-49AA-A01E-0CE1175114A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2AD91A69-FF23-49AA-A01E-0CE1175114A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2AD91A69-FF23-49AA-A01E-0CE1175114A6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
