@@ -1,6 +1,20 @@
-﻿// Copyright (c) Sela Group.  All rights reserved.
+﻿/*!
+ * story.js v0.1
+ *
+ * Copyright (c) Sela Group and Gil Fink. All rights reserved.
+ * Dual licensed under the MIT or GPL Version 2 licenses.
+ *
+ * Date: Fri Apr 20 14:00:12 2012 
+ */
 
-// story.js
+ /*
+ * story.js enables web developers to use client-side storages in a common and simple way. 
+ * It includes abstraction layer on top of Web Storage API, IndexedDB API, Cookies API and 
+ * In-Memory storage.
+ *
+ * Authors        Gil Fink
+ * Contributors   
+ */
 
 (function (story) {
 
@@ -221,123 +235,123 @@
     };
 
     IDBStorage.prototype.get = function (key) {
-        var promise = new story.Promise();
-        openTransaction(this, transaction.READ_WRITE).then(function (options) {
-            var values = [];
+        return promiseWrap(this, function (storyStorage, promise) { 
+            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+                var values = [];
 
-            options.trans.onerror = function (e) {
-                promise.reject(e);
-            };
-            options.trans.oncomplete = function () {
-                promise.resolve({ key: key, value: values });
-            };
+                options.trans.onerror = function (e) {
+                    promise.reject(e);
+                };
+                options.trans.oncomplete = function () {
+                    promise.resolve({ key: key, value: values });
+                };
 
-            var objectStore = options.trans.objectStore(options.name);
-            var request = objectStore.get(key);
-            request.onsuccess = function (event) {
-                 values.push(event.target.result);
-            }
-        }, function (e) {
-           promise.reject(e); 
-        });
-        return promise;
+                var objectStore = options.trans.objectStore(options.name);
+                var request = objectStore.get(key);
+                request.onsuccess = function (event) {
+                     values.push(event.target.result);
+                }
+            }, function (e) {
+               promise.reject(e); 
+            });
+        });        
     };
 
-    IDBStorage.prototype.add = function (key, value) {
-        var promise = new story.Promise();
-        openTransaction(this, transaction.READ_WRITE).then(function (options) {
-            options.trans.onabort = function (e) {
-                promise.reject(e);
-            };
-            options.trans.oncomplete = function () {
-                promise.resolve({ key: key, value: value });
-            };
-
-            options.trans.objectStore(options.name).add(value, key);           
-        }, function (e) {
-            if (e.code === 11) {
-                e = { name: "QUOTA_EXCEEDED_ERR", error: e };
-            }
-            promise.reject(e); 
-        });
-        return promise;
-    };
-
-    IDBStorage.prototype.update = function (key, value) {
-        var promise = new story.Promise(); 
-        openTransaction(this, transaction.READ_WRITE).then(function (options) {
+    IDBStorage.prototype.add = function (key, value) {        
+        return promiseWrap(this, function (storyStorage, promise) { 
+            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
                 options.trans.onabort = function (e) {
                     promise.reject(e);
                 };
                 options.trans.oncomplete = function () {
-                   promise.resolve({ key: key, value: value });
+                    promise.resolve({ key: key, value: value });
                 };
 
-                var request = options.trans.objectStore(options.name).openCursor(key);
-                request.pair = { key: key, value: value };
-                request.onsuccess = function (event) {
-                    var cursor = event.target.result;
-                    if (cursor) {
-                        cursor.update(event.target.pair.value);
-                    } else {
-                        options.trans.abort();
-                    }
-                }
+                options.trans.objectStore(options.name).add(value, key);           
             }, function (e) {
+                if (e.code === 11) {
+                    e = { name: "QUOTA_EXCEEDED_ERR", error: e };
+                }
                 promise.reject(e); 
             });
-        return promise;
+        });
+    };
+
+    IDBStorage.prototype.update = function (key, value) {
+        return promiseWrap(this, function (storyStorage, promise) {  
+            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+                    options.trans.onabort = function (e) {
+                        promise.reject(e);
+                    };
+                    options.trans.oncomplete = function () {
+                       promise.resolve({ key: key, value: value });
+                    };
+
+                    var request = options.trans.objectStore(options.name).openCursor(key);
+                    request.pair = { key: key, value: value };
+                    request.onsuccess = function (event) {
+                        var cursor = event.target.result;
+                        if (cursor) {
+                            cursor.update(event.target.pair.value);
+                        } else {
+                            options.trans.abort();
+                        }
+                    }
+                }, function (e) {
+                    promise.reject(e); 
+            });
+        });
     };
 
     IDBStorage.prototype.remove = function (key) {
-        var promise = new story.Promise();
-        openTransaction(this, transaction.READ_WRITE).then(function (options) {
-            options.trans.onerror = function (e) {
-                promise.reject(e);
-            };
-            options.trans.oncomplete = function () {
-                promise.resolve();
-            };
+        return promiseWrap(this, function (storyStorage, promise) { 
+            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+                options.trans.onerror = function (e) {
+                    promise.reject(e);
+                };
+                options.trans.oncomplete = function () {
+                    promise.resolve();
+                };
 
-            var objectStore = options.trans.objectStore(options.name);
-            objectStore.delete(key);
-        }, function (e) {
-           promise.reject(e); 
+                var objectStore = options.trans.objectStore(options.name);
+                objectStore.delete(key);
+            }, function (e) {
+               promise.reject(e); 
+            });
         });
-        return promise;
     };
 
     IDBStorage.prototype.contains = function (key) {
-        var promise = new story.Promise();
-        openTransaction(this, transaction.READ_ONLY).then(function (options) {
-            var request = options.trans.objectStore(options.name).openCursor(IDBKeyRange.only(key));
-            options.trans.oncomplete = function () {
-                promise.resolve(request.result !== undefined);
-            };
-            options.trans.onerror = function (e) {
-                promise.reject(e);
-            };
-        }, function (e) {
-           promise.reject(e); 
+        return promiseWrap(this, function (storyStorage, promise) { 
+            openTransaction(storyStorage, transaction.READ_ONLY).then(function (options) {
+                var request = options.trans.objectStore(options.name).openCursor(IDBKeyRange.only(key));
+                options.trans.oncomplete = function () {
+                    promise.resolve(request.result !== undefined);
+                };
+                options.trans.onerror = function (e) {
+                    promise.reject(e);
+                };
+            }, function (e) {
+               promise.reject(e); 
+            });        
         });
-        return promise;
     };
 
     IDBStorage.prototype.clear = function () {
-        var promise = new story.Promise();
-        openTransaction(this, transaction.READ_WRITE).then(function (options) {
-            options.trans.onerror = function(e) {
-                promise.reject(e);
-            };
-            options.trans.oncomplete = function () {
-                promise.resolve();
-            };
+        return promiseWrap(this, function (storyStorage, promise) { 
+            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+                options.trans.onerror = function(e) {
+                    promise.reject(e);
+                };
+                options.trans.oncomplete = function () {
+                    promise.resolve();
+                };
 
-            options.trans.objectStore(options.name).clear();
-        }, function (e) {
-           promise.reject(e); 
+                options.trans.objectStore(options.name).clear();
+            }, function (e) {
+               promise.reject(e); 
+            });
         });
-        return promise;
     };
 
     IDBStorage.prototype.close = function () {
@@ -347,7 +361,9 @@
         }
     };
 
-    registerType(story.StorageTypes.INDEXEDDB, new IDBFactory());
+    if (indexeddb) {
+        registerType(story.StorageTypes.INDEXEDDB, new IDBFactory());
+    }
 
     /* Cookie */
 
