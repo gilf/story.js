@@ -13,7 +13,7 @@
  * In-Memory storage.
  *
  * Authors        Gil Fink
- * Contributors   
+ * Contributors   Ran Wahle
  */
 
 (function (story) {
@@ -32,7 +32,8 @@
 
     story.types = {};
     story.StorageTypes = {
-        WEB_STORAGE: "WebStorage",
+        LOCAL_STORAGE: "LocalStorage",
+        SESSION_STORAGE: "SessionStorage",
         INDEXEDDB: "IndexedDB",
         COOKIE: "Cookie",
         IN_MEMORY: "InMemroy"
@@ -64,19 +65,19 @@
         },
         complete: function (which, arg) {
             if (which === 'resolve') {
-                this.then = function (resolve, reject) { 
-                    resolve(arg); 
+                this.then = function (resolve, reject) {
+                    resolve(arg);
                 }
             }
             else {
-                this.then = function (resolve, reject) { 
-                    reject(arg); 
+                this.then = function (resolve, reject) {
+                    reject(arg);
                 }
             }
             this.resolve = this.reject =
             function () {
                 throw new Error('Promise already completed.');
-    		};
+            };
             var aThen, i = 0;
             while (aThen = this.thens[i]) {
                 aThen[which] && aThen[which](arg);
@@ -96,8 +97,17 @@
 
     /* Web Storage */
 
-    var WebStorage = function () {
-        this.storage = window.localStorage;
+    var WebStorage = function (type) {
+        switch (type) {
+            case "local":
+                this.storage = window.localStorage;
+                break;
+            case "session":
+                this.storage = window.sessionStorage;
+                break;
+            default:
+                throw new Error("No such Web Storage type");
+        }
     };
 
     WebStorage.prototype.get = function (key) {
@@ -114,7 +124,7 @@
             }
             catch (e) {
                 promise.reject(e);
-            }    
+            }
         });
     };
 
@@ -139,44 +149,47 @@
     };
 
     WebStorage.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             try {
                 storyStorage.storage.removeItem(createStoreKey(key));
                 promise.resolve();
             }
             catch (e) {
                 promise.reject(e);
-            }    
-        }); 
+            }
+        });
     };
 
     WebStorage.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             try {
                 var item = storyStorage.storage.getItem(createStoreKey(key));
                 promise.resolve(item !== null);
             }
             catch (e) {
                 promise.reject(e);
-            }    
-        });        
+            }
+        });
     };
 
     WebStorage.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             try {
                 storyStorage.storage.clear();
                 promise.resolve();
             }
             catch (e) {
                 promise.reject(e);
-            }    
+            }
         });
     };
 
     if (window.localStorage) {
-        registerType(story.StorageTypes.WEB_STORAGE, new WebStorage());
-    }    
+        registerType(story.StorageTypes.LOCAL_STORAGE, new WebStorage("local"));
+    }
+    if (window.sessionStorage) {
+        registerType(story.StorageTypes.SESSION_STORAGE, new WebStorage("session"));
+    }
 
     /* IndexedDB  */
 
@@ -196,7 +209,7 @@
                 promise.resolve({ trans: db.transaction(name, mode), name: name });
             };
             request.onerror = function (e) {
-               promise.reject(e);
+                promise.reject(e);
             };
         }
         return promise;
@@ -205,7 +218,7 @@
     var IDBFactory = function () {
     };
 
-    var IDBStorage = function (name) {        
+    var IDBStorage = function (name) {
         this.name = name;
     };
 
@@ -214,18 +227,18 @@
         var name = options.name;
         var store = new IDBStorage(name || storyStorageDefaultName);
 
-        var request = indexeddb.open(name || storyStorageDefaultName, options.version || 1);  
+        var request = indexeddb.open(name || storyStorageDefaultName, options.version || 1);
         request.onsuccess = function (e) {
             store.db = request.result;
-            promise.resolve(store);                                                            
+            promise.resolve(store);
         };
- 
+
         request.onerror = function (e) {
             promise.reject("IndexedDB error: " + e.target.errorCode);
         };
- 
-        request.onupgradeneeded = function (e) {                   
-            var objectStore = e.currentTarget.result.createObjectStore(name, { keyPath: options.keyPath, autoIncrement: options.autoInc });            
+
+        request.onupgradeneeded = function (e) {
+            var objectStore = e.currentTarget.result.createObjectStore(name, { keyPath: options.keyPath, autoIncrement: options.autoInc });
 
             for (var len = options.names.length, i = 0; i < len; i += 1) {
                 objectStore.createIndex(options.names[i], options.values[i], { unique: options.unique[i] });
@@ -235,7 +248,7 @@
     };
 
     IDBStorage.prototype.get = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
                 var values = [];
 
@@ -249,16 +262,16 @@
                 var objectStore = options.trans.objectStore(options.name);
                 var request = objectStore.get(key);
                 request.onsuccess = function (event) {
-                     values.push(event.target.result);
+                    values.push(event.target.result);
                 }
             }, function (e) {
-               promise.reject(e); 
+                promise.reject(e);
             });
-        });        
+        });
     };
 
-    IDBStorage.prototype.add = function (key, value) {        
-        return promiseWrap(this, function (storyStorage, promise) { 
+    IDBStorage.prototype.add = function (key, value) {
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
                 options.trans.onabort = function (e) {
                     promise.reject(e);
@@ -267,44 +280,44 @@
                     promise.resolve({ key: key, value: value });
                 };
 
-                options.trans.objectStore(options.name).add(value, key);           
+                options.trans.objectStore(options.name).add(value, key);
             }, function (e) {
                 if (e.code === 11) {
                     e = { name: "QUOTA_EXCEEDED_ERR", error: e };
                 }
-                promise.reject(e); 
+                promise.reject(e);
             });
         });
     };
 
     IDBStorage.prototype.update = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {  
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                    options.trans.onabort = function (e) {
-                        promise.reject(e);
-                    };
-                    options.trans.oncomplete = function () {
-                       promise.resolve({ key: key, value: value });
-                    };
+                options.trans.onabort = function (e) {
+                    promise.reject(e);
+                };
+                options.trans.oncomplete = function () {
+                    promise.resolve({ key: key, value: value });
+                };
 
-                    var request = options.trans.objectStore(options.name).openCursor(key);
-                    request.pair = { key: key, value: value };
-                    request.onsuccess = function (event) {
-                        var cursor = event.target.result;
-                        if (cursor) {
-                            cursor.update(event.target.pair.value);
-                        } else {
-                            options.trans.abort();
-                        }
+                var request = options.trans.objectStore(options.name).openCursor(key);
+                request.pair = { key: key, value: value };
+                request.onsuccess = function (event) {
+                    var cursor = event.target.result;
+                    if (cursor) {
+                        cursor.update(event.target.pair.value);
+                    } else {
+                        options.trans.abort();
                     }
-                }, function (e) {
-                    promise.reject(e); 
+                }
+            }, function (e) {
+                promise.reject(e);
             });
         });
     };
 
     IDBStorage.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
                 options.trans.onerror = function (e) {
                     promise.reject(e);
@@ -314,15 +327,15 @@
                 };
 
                 var objectStore = options.trans.objectStore(options.name);
-                objectStore.delete(key);
+                objectStore["delete"](key);
             }, function (e) {
-               promise.reject(e); 
+                promise.reject(e);
             });
         });
     };
 
     IDBStorage.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_ONLY).then(function (options) {
                 var request = options.trans.objectStore(options.name).openCursor(IDBKeyRange.only(key));
                 options.trans.oncomplete = function () {
@@ -332,15 +345,15 @@
                     promise.reject(e);
                 };
             }, function (e) {
-               promise.reject(e); 
-            });        
+                promise.reject(e);
+            });
         });
     };
 
     IDBStorage.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) { 
+        return promiseWrap(this, function (storyStorage, promise) {
             openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                options.trans.onerror = function(e) {
+                options.trans.onerror = function (e) {
                     promise.reject(e);
                 };
                 options.trans.oncomplete = function () {
@@ -349,7 +362,7 @@
 
                 options.trans.objectStore(options.name).clear();
             }, function (e) {
-               promise.reject(e); 
+                promise.reject(e);
             });
         });
     };
@@ -367,7 +380,7 @@
 
     /* Cookie */
 
-    var Cookie = function () {        
+    var Cookie = function () {
     };
 
     Cookie.prototype.get = function (key) {
@@ -385,7 +398,7 @@
 
     Cookie.prototype.add = function (key, value) {
         return promiseWrap(this, function (storyStorage, promise) {
-                var cookieStr = key + "=" + escape(value);
+            var cookieStr = key + "=" + escape(value);
             document.cookie = cookieStr;
             promise.resolve({ key: key, cookieString: cookieStr });
         });
@@ -407,15 +420,15 @@
     Cookie.prototype.contains = function (key) {
         return promiseWrap(this, function (storyStorage, promise) {
             var match = document.cookie.match('(^|;) ?' + key + '=([^;]*)(;|$)');
-            match ? promise.resolve(true) : promise.resolve(false);    
+            match ? promise.resolve(true) : promise.resolve(false);
         });
     };
 
     Cookie.prototype.clear = function () {
         return promiseWrap(this, function (storyStorage, promise) {
             document.cookie = "";
-            promise.resolve();    
-        });        
+            promise.resolve();
+        });
     };
 
     registerType(story.StorageTypes.COOKIE, new Cookie());
@@ -453,7 +466,7 @@
                 } else {
                     promise.reject({ message: "key already exists", key: key });
                 }
-            }    
+            }
         });
     };
 
@@ -476,22 +489,22 @@
                 }
                 promise.resolve();
             }
-        });      
+        });
     };
 
     MemoryStorage.prototype.contains = function (key) {
         return promiseWrap(this, function (storyStorage, promise) {
             promise.resolve(storyStorage.storage.hasOwnProperty(key));
-        });        
+        });
     };
 
     MemoryStorage.prototype.clear = function () {
         return promiseWrap(this, function (storyStorage, promise) {
             storyStorage.storage = {};
             promise.resolve();
-        });       
+        });
     };
 
     registerType(story.StorageTypes.IN_MEMORY, new MemoryStorage());
 
-}(this.story = this.story || {}));
+} (this.story = this.story || {}));
