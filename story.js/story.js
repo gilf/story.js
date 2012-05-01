@@ -1,510 +1,581 @@
 ﻿/*!
- * story.js v0.1
- *
- * Copyright (c) Sela Group and Gil Fink. All rights reserved.
- * Dual licensed under the MIT or GPL Version 2 licenses.
- *
- * Date: Fri Apr 20 14:00:12 2012 
- */
+* story.js v0.1
+*
+* Copyright (c) Sela Group and Gil Fink. All rights reserved.
+* Dual licensed under the MIT or GPL Version 2 licenses.
+*
+* Date: Fri Apr 20 14:00:12 2012 
+*/
 
- /*
- * story.js enables web developers to use client-side storages in a common and simple way. 
- * It includes abstraction layer on top of Web Storage API, IndexedDB API, Cookies API and 
- * In-Memory storage.
- *
- * Authors        Gil Fink
- * Contributors   Ran Wahle
- */
+/*
+* story.js enables web developers to use client-side storages in a common and simple way. 
+* It includes abstraction layer on top of Web Storage API, IndexedDB API, Cookies API and 
+* In-Memory storage.
+*
+* Authors        Gil Fink
+* Contributors   Ran Wahle
+*/
 
 (function (story) {
 
-    var storyKeyPrefix = "__story__",
-        storyStorageDefaultName = "_story_",
-        storage = story.storage = function (name) {
-            if (!name) {
-                // In-memory storage is the default storage
-                return story.types[story.StorageTypes.IN_MEMORY];
-            }
-            return story.types[name];
-        };
+	var storyKeyPrefix = "__story__",
+		storyStorageDefaultName = "_story_",
+		storage = story.storage = function (name) {
+			if (!name) {
+				// In-memory storage is the default storage
+				return story.types[story.StorageTypes.IN_MEMORY];
+			}
+			return story.types[name];
+		};
 
-    /* Public Members */
+	/* Public Members */
 
-    story.types = {};
-    story.StorageTypes = {
-        LOCAL_STORAGE: "LocalStorage",
-        SESSION_STORAGE: "SessionStorage",
-        INDEXEDDB: "IndexedDB",
-        COOKIE: "Cookie",
-        IN_MEMORY: "InMemroy"
-    };
+	story.types = {};
+	story.StorageTypes = {
+		LOCAL_STORAGE: "LocalStorage",
+		SESSION_STORAGE: "SessionStorage",
+		INDEXEDDB: "IndexedDB",
+		COOKIE: "Cookie",
+		IN_MEMORY: "InMemroy"
+	};
 
-    /* Utility Functions and Objects */
+	/* Utility Functions and Objects */
 
-    var registerType = function (name, type) {
-        story.types[name] = type;
-    };
+	var registerType = function (name, type) {
+		story.types[name] = type;
+	};
 
-    var createStoreKey = function (key) {
-        return storyKeyPrefix + key;
-    };
+	var createStoreKey = function (key) {
+		return storyKeyPrefix + key;
+	};
 
-    story.Promise = function () {
-        this.thens = [];
-    };
+	story.Promise = function () {
+		this.thens = [];
+	};
 
-    story.Promise.prototype = {
-        then: function (onResolve, onReject) {
-            this.thens.push({ resolve: onResolve, reject: onReject });
-        },
-        resolve: function (value) {
-            this.complete('resolve', value);
-        },
-        reject: function (error) {
-            this.complete('reject', error);
-        },
-        complete: function (which, arg) {
-            if (which === 'resolve') {
-                this.then = function (resolve, reject) {
-                    resolve(arg);
-                }
-            }
-            else {
-                this.then = function (resolve, reject) {
-                    reject(arg);
-                }
-            }
-            this.resolve = this.reject =
-            function () {
-                throw new Error('Promise already completed.');
-            };
-            var aThen, i = 0;
-            while (aThen = this.thens[i]) {
-                aThen[which] && aThen[which](arg);
-                i += 1;
-            }
-            delete this.thens;
-        }
-    };
+	story.Promise.prototype = {
+		then: function (onResolve, onReject) {
+			this.thens.push({ resolve: onResolve, reject: onReject });
+		},
+		resolve: function (value) {
+			this.complete('resolve', value);
+		},
+		reject: function (error) {
+			this.complete('reject', error);
+		},
+		complete: function (which, arg) {
+			if (which === 'resolve') {
+				this.then = function (resolve, reject) {
+					resolve(arg);
+				}
+			}
+			else {
+				this.then = function (resolve, reject) {
+					reject(arg);
+				}
+			}
+			this.resolve = this.reject =
+			function () {
+				throw new Error('Promise already completed.');
+			};
+			var aThen, i = 0;
+			while (aThen = this.thens[i]) {
+				aThen[which] && aThen[which](arg);
+				i += 1;
+			}
+			delete this.thens;
+		}
+	};
 
-    function promiseWrap(storyStorage, impl) {
-        var promise = new story.Promise();
-        impl(storyStorage, promise);
-        return promise;
-    }
+	function promiseWrap(storyStorage, impl) {
+		var promise = new story.Promise();
+		impl(storyStorage, promise);
+		return promise;
+	}
 
-    /*** story Types ***/
+	/*** story Types ***/
 
-    /* Web Storage */
+	/* Web Storage */
 
-    var WebStorage = function (type) {
-        switch (type) {
-            case "local":
-                this.storage = window.localStorage;
-                break;
-            case "session":
-                this.storage = window.sessionStorage;
-                break;
-            default:
-                throw new Error("No such Web Storage type");
-        }
-    };
+	var WebStorage = function (type) {
+		switch (type) {
+			case "local":
+				this.storage = window.localStorage;
+				break;
+			case "session":
+				this.storage = window.sessionStorage;
+				break;
+			default:
+				throw new Error("No such Web Storage type");
+		}
+	};
 
-    WebStorage.prototype.get = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            try {
-                var item = storyStorage.storage.getItem(createStoreKey(key));
-                if (item !== null && item !== "undefined") {
-                    item = window.JSON.parse(item);
-                }
-                else {
-                    item = undefined;
-                }
-                promise.resolve(item);
-            }
-            catch (e) {
-                promise.reject(e);
-            }
-        });
-    };
+	WebStorage.prototype.get = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				var item = storyStorage.storage.getItem(createStoreKey(key));
+				if (item !== null && item !== "undefined") {
+					item = window.JSON.parse(item);
+				}
+				else {
+					item = undefined;
+				}
+				promise.resolve(item);
+			}
+			catch (e) {
+				promise.reject(e);
+			}
+		});
+	};
 
-    WebStorage.prototype.add = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            try {
-                storyStorage.storage.setItem(createStoreKey(key), window.JSON.stringify(value));
-                promise.resolve({ key: key, value: value });
-            }
-            catch (e) {
-                if (e.code === 22 || e.number === 0x8007000E) {
-                    promise.reject({ message: "QUOTA_EXCEEDED_ERR", error: e });
-                } else {
-                    promise.reject(e);
-                }
-            }
-        });
-    };
+	WebStorage.prototype.getAll = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				var items = [];
+				var len = storyStorage.storage.length;
+				for (var i = 0; i < len; i += 1) {
+					var key = storyStorage.storage.key(i);
+					var item = JSON.parse(storyStorage.storage.getItem(key));
+					items.push(item);
+				}
+				promise.resolve(items);
+			}
+			catch (e) {
+				promise.reject(e);
+			}
+		});
+	};
 
-    WebStorage.prototype.update = function (key, value) {
-        return this.add(key, value);
-    };
+	WebStorage.prototype.add = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				storyStorage.storage.setItem(createStoreKey(key), window.JSON.stringify(value));
+				promise.resolve({ key: key, value: value });
+			}
+			catch (e) {
+				if (e.code === 22 || e.number === 0x8007000E) {
+					promise.reject({ message: "QUOTA_EXCEEDED_ERR", error: e });
+				} else {
+					promise.reject(e);
+				}
+			}
+		});
+	};
 
-    WebStorage.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            try {
-                storyStorage.storage.removeItem(createStoreKey(key));
-                promise.resolve();
-            }
-            catch (e) {
-                promise.reject(e);
-            }
-        });
-    };
+	WebStorage.prototype.update = function (key, value) {
+		return this.add(key, value);
+	};
 
-    WebStorage.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            try {
-                var item = storyStorage.storage.getItem(createStoreKey(key));
-                promise.resolve(item !== null);
-            }
-            catch (e) {
-                promise.reject(e);
-            }
-        });
-    };
+	WebStorage.prototype.remove = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				storyStorage.storage.removeItem(createStoreKey(key));
+				promise.resolve();
+			}
+			catch (e) {
+				promise.reject(e);
+			}
+		});
+	};
 
-    WebStorage.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) {
-            try {
-                storyStorage.storage.clear();
-                promise.resolve();
-            }
-            catch (e) {
-                promise.reject(e);
-            }
-        });
-    };
+	WebStorage.prototype.contains = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				var item = storyStorage.storage.getItem(createStoreKey(key));
+				promise.resolve(item !== null);
+			}
+			catch (e) {
+				promise.reject(e);
+			}
+		});
+	};
 
-    if (window.localStorage) {
-        registerType(story.StorageTypes.LOCAL_STORAGE, new WebStorage("local"));
-    }
-    if (window.sessionStorage) {
-        registerType(story.StorageTypes.SESSION_STORAGE, new WebStorage("session"));
-    }
+	WebStorage.prototype.clear = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			try {
+				storyStorage.storage.clear();
+				promise.resolve();
+			}
+			catch (e) {
+				promise.reject(e);
+			}
+		});
+	};
 
-    /* IndexedDB  */
+	if (window.localStorage) {
+		registerType(story.StorageTypes.LOCAL_STORAGE, new WebStorage("local"));
+	}
+	if (window.sessionStorage) {
+		registerType(story.StorageTypes.SESSION_STORAGE, new WebStorage("session"));
+	}
 
-    var indexeddb = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
-    var transaction = window.IDBTransaction || window.webkitIDBTransaction;
+	/* IndexedDB  */
 
-    var openTransaction = function (storage, mode) {
-        var promise = new story.Promise();
-        var name = storage.name;
-        var db = storage.db;
-        if (db) {
-            promise.resolve({ trans: db.transaction(name, mode), name: name });
-        } else {
-            var request = storage.storage.open(storyStorageDefaultName + name);
-            request.onsuccess = function (e) {
-                storage.db = e.target.result;
-                promise.resolve({ trans: db.transaction(name, mode), name: name });
-            };
-            request.onerror = function (e) {
-                promise.reject(e);
-            };
-        }
-        return promise;
-    };
+	var indexeddb = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB;
+	var transaction = window.IDBTransaction || window.webkitIDBTransaction;
 
-    var IDBFactory = function () {
-    };
+	var openTransaction = function (storage, mode) {
+		var promise = new story.Promise();
+		var name = storage.name;
+		var db = storage.db;
+		if (db) {
+			promise.resolve({ trans: db.transaction(name, mode), name: name });
+		} else {
+			var request = storage.storage.open(storyStorageDefaultName + name);
+			request.onsuccess = function (e) {
+				storage.db = e.target.result;
+				promise.resolve({ trans: db.transaction(name, mode), name: name });
+			};
+			request.onerror = function (e) {
+				promise.reject(e);
+			};
+		}
+		return promise;
+	};
 
-    var IDBStorage = function (name) {
-        this.name = name;
-    };
+	var IDBFactory = function () {
+	};
 
-    IDBFactory.prototype.createStore = function (options) {
-        var promise = new story.Promise();
-        var name = options.name;
-        var store = new IDBStorage(name || storyStorageDefaultName);
+	var IDBStorage = function (name) {
+		this.name = name;
+	};
 
-        var request = indexeddb.open(name || storyStorageDefaultName, options.version || 1);
-        request.onsuccess = function (e) {
-            store.db = request.result;
-            promise.resolve(store);
-        };
+	IDBFactory.prototype.createStore = function (options) {
+		var promise = new story.Promise();
+		var name = options.name;
+		var store = new IDBStorage(name || storyStorageDefaultName);
 
-        request.onerror = function (e) {
-            promise.reject("IndexedDB error: " + e.target.errorCode);
-        };
+		var request = indexeddb.open(name || storyStorageDefaultName, options.version || 1);
+		request.onsuccess = function (e) {
+			store.db = request.result;
+			promise.resolve(store);
+		};
 
-        request.onupgradeneeded = function (e) {
-            var objectStore = e.currentTarget.result.createObjectStore(name, { keyPath: options.keyPath, autoIncrement: options.autoInc });
+		request.onerror = function (e) {
+			promise.reject("IndexedDB error: " + e.target.errorCode);
+		};
 
-            for (var len = options.names.length, i = 0; i < len; i += 1) {
-                objectStore.createIndex(options.names[i], options.values[i], { unique: options.unique[i] });
-            }
-        };
-        return promise;
-    };
+		request.onupgradeneeded = function (e) {
+			var objectStore = e.currentTarget.result.createObjectStore(name, { keyPath: options.keyPath, autoIncrement: options.autoInc });
 
-    IDBStorage.prototype.get = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                var values = [];
+			for (var len = options.names.length, i = 0; i < len; i += 1) {
+				objectStore.createIndex(options.names[i], options.values[i], { unique: options.unique[i] });
+			}
+		};
+		return promise;
+	};
 
-                options.trans.onerror = function (e) {
-                    promise.reject(e);
-                };
-                options.trans.oncomplete = function () {
-                    promise.resolve({ key: key, value: values });
-                };
+	IDBStorage.prototype.get = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				var values = [];
 
-                var objectStore = options.trans.objectStore(options.name);
-                var request = objectStore.get(key);
-                request.onsuccess = function (event) {
-                    values.push(event.target.result);
-                }
-            }, function (e) {
-                promise.reject(e);
-            });
-        });
-    };
+				options.trans.onerror = function (e) {
+					promise.reject(e);
+				};
+				options.trans.oncomplete = function () {
+					promise.resolve({ key: key, value: values });
+				};
 
-    IDBStorage.prototype.add = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                options.trans.onabort = function (e) {
-                    promise.reject(e);
-                };
-                options.trans.oncomplete = function () {
-                    promise.resolve({ key: key, value: value });
-                };
+				var objectStore = options.trans.objectStore(options.name);
+				var request = objectStore.get(key);
+				request.onsuccess = function (event) {
+					values.push(event.target.result);
+				}
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-                options.trans.objectStore(options.name).add(value, key);
-            }, function (e) {
-                if (e.code === 11) {
-                    e = { name: "QUOTA_EXCEEDED_ERR", error: e };
-                }
-                promise.reject(e);
-            });
-        });
-    };
+	IDBStorage.prototype.getAll = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				var items = [];
 
-    IDBStorage.prototype.update = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                options.trans.onabort = function (e) {
-                    promise.reject(e);
-                };
-                options.trans.oncomplete = function () {
-                    promise.resolve({ key: key, value: value });
-                };
+				trans.oncomplete = function (evt) {
+					promise.resolve(items);
+				};
 
-                var request = options.trans.objectStore(options.name).openCursor(key);
-                request.pair = { key: key, value: value };
-                request.onsuccess = function (event) {
-                    var cursor = event.target.result;
-                    if (cursor) {
-                        cursor.update(event.target.pair.value);
-                    } else {
-                        options.trans.abort();
-                    }
-                }
-            }, function (e) {
-                promise.reject(e);
-            });
-        });
-    };
+				var request = store.openCursor();
 
-    IDBStorage.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                options.trans.onerror = function (e) {
-                    promise.reject(e);
-                };
-                options.trans.oncomplete = function () {
-                    promise.resolve();
-                };
+				request.onerror = function (e) {
+					promise.reject(e);
+				};
 
-                var objectStore = options.trans.objectStore(options.name);
-                objectStore["delete"](key);
-            }, function (e) {
-                promise.reject(e);
-            });
-        });
-    };
+				request.onsuccess = function (evt) {
+					var cursor = evt.target.result;
+					if (cursor) {
+						items.push(cursor.value);
+						cursor["continue"]();
+					}
+				};
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-    IDBStorage.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_ONLY).then(function (options) {
-                var request = options.trans.objectStore(options.name).openCursor(IDBKeyRange.only(key));
-                options.trans.oncomplete = function () {
-                    promise.resolve(request.result !== undefined);
-                };
-                options.trans.onerror = function (e) {
-                    promise.reject(e);
-                };
-            }, function (e) {
-                promise.reject(e);
-            });
-        });
-    };
+	IDBStorage.prototype.add = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				options.trans.onabort = function (e) {
+					promise.reject(e);
+				};
+				options.trans.oncomplete = function () {
+					promise.resolve({ key: key, value: value });
+				};
 
-    IDBStorage.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) {
-            openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
-                options.trans.onerror = function (e) {
-                    promise.reject(e);
-                };
-                options.trans.oncomplete = function () {
-                    promise.resolve();
-                };
+				options.trans.objectStore(options.name).add(value, key);
+			}, function (e) {
+				if (e.code === 11) {
+					e = { name: "QUOTA_EXCEEDED_ERR", error: e };
+				}
+				promise.reject(e);
+			});
+		});
+	};
 
-                options.trans.objectStore(options.name).clear();
-            }, function (e) {
-                promise.reject(e);
-            });
-        });
-    };
+	IDBStorage.prototype.update = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				options.trans.onabort = function (e) {
+					promise.reject(e);
+				};
+				options.trans.oncomplete = function () {
+					promise.resolve({ key: key, value: value });
+				};
 
-    IDBStorage.prototype.close = function () {
-        if (this.db) {
-            this.db.close();
-            this.db = null;
-        }
-    };
+				var request = options.trans.objectStore(options.name).openCursor(key);
+				request.pair = { key: key, value: value };
+				request.onsuccess = function (event) {
+					var cursor = event.target.result;
+					if (cursor) {
+						cursor.update(event.target.pair.value);
+					} else {
+						options.trans.abort();
+					}
+				}
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-    if (indexeddb) {
-        registerType(story.StorageTypes.INDEXEDDB, new IDBFactory());
-    }
+	IDBStorage.prototype.remove = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				options.trans.onerror = function (e) {
+					promise.reject(e);
+				};
+				options.trans.oncomplete = function () {
+					promise.resolve();
+				};
 
-    /* Cookie */
+				var objectStore = options.trans.objectStore(options.name);
+				objectStore["delete"](key);
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-    var Cookie = function () {
-    };
+	IDBStorage.prototype.contains = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_ONLY).then(function (options) {
+				var request = options.trans.objectStore(options.name).openCursor(IDBKeyRange.only(key));
+				options.trans.oncomplete = function () {
+					promise.resolve(request.result !== undefined);
+				};
+				options.trans.onerror = function (e) {
+					promise.reject(e);
+				};
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-    Cookie.prototype.get = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            var match = document.cookie.match('(^|;) ?' + key + '=([^;]*)(;|$)');
+	IDBStorage.prototype.clear = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			openTransaction(storyStorage, transaction.READ_WRITE).then(function (options) {
+				options.trans.onerror = function (e) {
+					promise.reject(e);
+				};
+				options.trans.oncomplete = function () {
+					promise.resolve();
+				};
 
-            if (match) {
-                promise.resolve(unescape(match[2]));
-            }
-            else {
-                promise.reject({ message: "Cookie doesn't exists" });
-            }
-        });
-    };
+				options.trans.objectStore(options.name).clear();
+			}, function (e) {
+				promise.reject(e);
+			});
+		});
+	};
 
-    Cookie.prototype.add = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            var cookieStr = key + "=" + escape(value);
-            document.cookie = cookieStr;
-            promise.resolve({ key: key, cookieString: cookieStr });
-        });
-    };
+	IDBStorage.prototype.close = function () {
+		if (this.db) {
+			this.db.close();
+			this.db = null;
+		}
+	};
 
-    Cookie.prototype.update = function (key, value) {
-        return this.add(key, value);
-    };
+	if (indexeddb) {
+		registerType(story.StorageTypes.INDEXEDDB, new IDBFactory());
+	}
 
-    Cookie.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            var expiry = new Date();
-            expiry.setTime(expiry.getTime() - 1);
-            document.cookie = key += "=; expires=" + expiry.toGMTString();
-            promise.resolve();
-        });
-    };
+	/* Cookie */
 
-    Cookie.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            var match = document.cookie.match('(^|;) ?' + key + '=([^;]*)(;|$)');
-            match ? promise.resolve(true) : promise.resolve(false);
-        });
-    };
+	var Cookie = function () {
+	};
 
-    Cookie.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) {
-            document.cookie = "";
-            promise.resolve();
-        });
-    };
+	Cookie.prototype.get = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var match = document.cookie.match('(^|;) ?' + key + '=([^;]*)(;|$)');
 
-    registerType(story.StorageTypes.COOKIE, new Cookie());
+			if (match) {
+				promise.resolve(unescape(match[2]));
+			}
+			else {
+				promise.reject({ message: "Cookie doesn't exists" });
+			}
+		});
+	};
 
-    /* In Memory Storage */
+	Cookie.prototype.getAll = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var pairs = document.cookie.split(';');
+			var len = pairs.length;
+			var cookies = [];
+			for (var i = 0; i < len; i++) {
+				var pair = pairs[i].split('=');
+				cookies.push({ key: pair[0], value: unescape(pair[1]) });
+			}
+			promise.resolve(cookies);
+		});
+	}
 
-    var MemoryStorage = function () {
-        this.storage = {};
+	Cookie.prototype.add = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var cookieStr = key + "=" + escape(value);
+			document.cookie = cookieStr;
+			promise.resolve({ key: key, cookieString: cookieStr });
+		});
+	};
 
-        this.validateKey = function (key) {
-            if (key instanceof Array || key === null || key === undefined) {
-                return false;
-            }
-            return true;
-        };
-    };
+	Cookie.prototype.update = function (key, value) {
+		return this.add(key, value);
+	};
 
-    MemoryStorage.prototype.get = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            if (storyStorage.validateKey(key)) {
-                promise.resolve(storyStorage.storage[key]);
-            }
-            else {
-                promise.reject("Invalid Key");
-            }
-        });
-    };
+	Cookie.prototype.remove = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var expiry = new Date();
+			expiry.setTime(expiry.getTime() - 1);
+			document.cookie = key += "=; expires=" + expiry.toGMTString();
+			promise.resolve();
+		});
+	};
 
-    MemoryStorage.prototype.add = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            if (storyStorage.validateKey(key)) {
-                if (!storyStorage.storage.hasOwnProperty(key)) {
-                    storyStorage.storage[key] = value;
-                    promise.resolve({ key: key, value: value });
-                } else {
-                    promise.reject({ message: "key already exists", key: key });
-                }
-            }
-        });
-    };
+	Cookie.prototype.contains = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var match = document.cookie.match('(^|;) ?' + key + '=([^;]*)(;|$)');
+			match ? promise.resolve(true) : promise.resolve(false);
+		});
+	};
 
-    MemoryStorage.prototype.update = function (key, value) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            if (storyStorage.validateKey(key)) {
-                if (storyStorage.storage.hasOwnProperty(key)) {
-                    storyStorage.storage[key] = value;
-                    promise.resolve({ key: key, value: value });
-                }
-            }
-        });
-    };
+	Cookie.prototype.clear = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			document.cookie = "";
+			promise.resolve();
+		});
+	};
 
-    MemoryStorage.prototype.remove = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            if (storyStorage.validateKey(key)) {
-                if (storyStorage.storage.hasOwnProperty(key)) {
-                    delete storyStorage.storage[key];
-                }
-                promise.resolve();
-            }
-        });
-    };
+	registerType(story.StorageTypes.COOKIE, new Cookie());
 
-    MemoryStorage.prototype.contains = function (key) {
-        return promiseWrap(this, function (storyStorage, promise) {
-            promise.resolve(storyStorage.storage.hasOwnProperty(key));
-        });
-    };
+	/* In Memory Storage */
 
-    MemoryStorage.prototype.clear = function () {
-        return promiseWrap(this, function (storyStorage, promise) {
-            storyStorage.storage = {};
-            promise.resolve();
-        });
-    };
+	var MemoryStorage = function () {
+		this.storage = {};
 
-    registerType(story.StorageTypes.IN_MEMORY, new MemoryStorage());
+		this.validateKey = function (key) {
+			if (key instanceof Array || key === null || key === undefined) {
+				return false;
+			}
+			return true;
+		};
+	};
+
+	MemoryStorage.prototype.get = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			if (storyStorage.validateKey(key)) {
+				promise.resolve(storyStorage.storage[key]);
+			}
+			else {
+				promise.reject("Invalid Key");
+			}
+		});
+	};
+
+	MemoryStorage.prototype.getAll = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			var items = [];
+			for (property in storyStorage.storage) {
+				if (storyStorage.storage.hasOwnProperty(property)) {
+					items.push({ key: property, value: storyStorage.storage[property] });
+				}
+			}
+			promise.resolve(items);
+		});
+	};
+
+	MemoryStorage.prototype.add = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			if (storyStorage.validateKey(key)) {
+				if (!storyStorage.storage.hasOwnProperty(key)) {
+					storyStorage.storage[key] = value;
+					promise.resolve({ key: key, value: value });
+				} else {
+					promise.reject({ message: "key already exists", key: key });
+				}
+			}
+		});
+	};
+
+	MemoryStorage.prototype.update = function (key, value) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			if (storyStorage.validateKey(key)) {
+				if (storyStorage.storage.hasOwnProperty(key)) {
+					storyStorage.storage[key] = value;
+					promise.resolve({ key: key, value: value });
+				}
+			}
+		});
+	};
+
+	MemoryStorage.prototype.remove = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			if (storyStorage.validateKey(key)) {
+				if (storyStorage.storage.hasOwnProperty(key)) {
+					delete storyStorage.storage[key];
+				}
+				promise.resolve();
+			}
+		});
+	};
+
+	MemoryStorage.prototype.contains = function (key) {
+		return promiseWrap(this, function (storyStorage, promise) {
+			promise.resolve(storyStorage.storage.hasOwnProperty(key));
+		});
+	};
+
+	MemoryStorage.prototype.clear = function () {
+		return promiseWrap(this, function (storyStorage, promise) {
+			storyStorage.storage = {};
+			promise.resolve();
+		});
+	};
+
+	registerType(story.StorageTypes.IN_MEMORY, new MemoryStorage());
 
 } (this.story = this.story || {}));
