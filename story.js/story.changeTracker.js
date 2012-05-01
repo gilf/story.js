@@ -18,6 +18,7 @@
 
 (function (story) {
 
-
+    var ChangeTracker = function () {
+    };
 
 } (this.story = this.story || {}));

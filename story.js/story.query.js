@@ -18,6 +18,19 @@
 
 (function (story) {
 
+    var Query = function () {
+    };
 
+    Query.prototype.select = function () {
+        return this;
+    };
+
+    Query.prototype.forEach = function () {
+        return this;
+    };
+
+    Query.prototype.where = function () {
+        return this;
+    };
 
 } (this.story = this.story || {}));
