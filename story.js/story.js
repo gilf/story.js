@@ -449,7 +449,9 @@
 			var cookies = [];
 			for (var i = 0; i < len; i++) {
 				var pair = pairs[i].split('=');
-				cookies.push({ key: pair[0], value: unescape(pair[1]) });
+				if (pair !== "") {
+					cookies.push({ key: pair[0], value: unescape(pair[1]) });
+				}
 			}
 			promise.resolve(cookies);
 		});
