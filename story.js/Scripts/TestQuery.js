@@ -14,10 +14,9 @@ storage.add("key3", "value3").then(function (data) {
 storage.getAll().then(function (data) {
     var items = storage.query.from(data).where(function (item) {
         return item.key === "key2";
-    }).items;
-    for (var i = 0; i < items.length; i++) {
-        console.log(items[i].key + ' ' + items[i].value);
-    }
+    }).forEach(function (item) {
+        console.log(item.key + ' ' + item.value);
+    });
 }, function (error) {
     console.log(error);
 });

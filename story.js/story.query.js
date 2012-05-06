@@ -95,6 +95,34 @@
         }
     };
 
+    Query.prototype.contains = function (item) {
+        var len = this.items.length;
+        for (var i = 0; i < len; i += 0) {
+            if (item === this.items[i].value) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    Query.prototype.skip = function (count) {
+        return this.items.slice(count);
+    };
+
+    Query.prototype.take = function (count) {
+        return this.items.slice(0, count);
+    };
+
+    Query.prototype.orderBy = function (sortFunc) {
+        this.items.sort(sortFunc);
+        return this;
+    };
+
+    Query.prototype.reverse = function () {
+        this.items.reverse();
+        return this;
+    };
+
     Query.prototype.elementAt = function (index) {
         return this.items[index];
     };
