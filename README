@@ -46,7 +46,8 @@ storage.clear().then(function (data) {
 });
 
 story.js also includes a query object that exposes a query language that resembles LINQ. 
-The query language implementation include functions such as where, forEach, first, last and etc and it is exposed as a plugin to the story.js library.
+The query language implementation include functions such as where, forEach, first, last and etc.
+The query object is exposed as a plugin to the story.js library.
 For example, the following code shows how to use the query object:
 ar storage = story.storage(story.StorageTypes.IN_MEMORY);
 storage.getAll().then(function (data) {
