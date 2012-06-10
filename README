@@ -1,0 +1,60 @@
+story.js enables web developers to use client-side storages in a simple and consistent way. 
+It includes abstraction layer on top of Web Storage API, IndexedDB API, Cookies API and In-Memory storage.
+You can use a very easy to learn API in order to master the library. 
+
+Some code examples:
+In order to use a storage in story.js you first retrieve it from the story object. For example, here is an example of retrieving the localStorage abstraction:
+var storage = story.storage(story.StorageTypes.LOCAL_STORAGE);
+
+After you have the storage object you can use one of the following functions: get, getAll, contain, add, update, remove, and clear. 
+Every operation exposes a deferred object that can get a success and error callback.
+For example, the following code shows how to use the localStorage abstraction with some API calls:
+var storage = story.storage(story.StorageTypes.LOCAL_STORAGE);
+storage.add("key", "value").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);});
+storage.get("key").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+storage.contains("key").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+storage.update("key", "value1").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+storage.remove("key").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+storage.contains("key").then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+storage.clear().then(function (data) {
+    console.log(data);
+}, function (error) {
+    console.log(error);
+});
+
+story.js also includes a query object that exposes a query language that resembles LINQ. 
+The query language implementation include functions such as where, forEach, first, last and etc and it is exposed as a plugin to the story.js library.
+For example, the following code shows how to use the query object:
+ar storage = story.storage(story.StorageTypes.IN_MEMORY);
+storage.getAll().then(function (data) {
+    var items = storage.query.from(data).where(function (item) {
+        return item.key === "key2";
+    }).forEach(function (item) {
+        console.log(item.key + ' ' + item.value);
+    });
+}, function (error) {
+    console.log(error);
+}); 
